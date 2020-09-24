@@ -1,0 +1,37 @@
+README:
+
+In this code, we run KWC bicrystal simulation
+When misorientation between two crystal is pi/6, 
+it should speak out KWC energy approximatedly 0.62.
+
+Makefile will compile the main.cpp
+
+main.cpp
+
+List of inputs
+
+[1,2,3] system size: nx, ny, nz.
+
+    For 2D simulation, simply substitute nz=1.
+
+[4] epsilon value (Parameter of KWC model)
+
+
+It is suggest to run the executable as following command lines
+
+(Example)
+
+./main 1024 1024 1 0.01 
+
+There are some points one should be awared of.
+
+1) Ideally, Grain Boundary Energy should not dependent on the choice of epsilon.
+The change in $epsilon$ maintains the total energy,
+but affects the width of grain boundary region
+(diffuseing the interface).
+
+2) In real simulation, one may wish to run with small $epsilon$,
+which is close to a sharp interface. However, when $epsilon$ is too small,
+the gradient estimator (when computing numerically computing total energy of system),
+has larger error. A more refined  grid space (>2048x2048) will
+capture this and one can see correct energy.

@@ -1,0 +1,30 @@
+[1,2,3] system size: nx, ny, nz.
+
+    For 2D simulation, simply substitute nz=1.
+
+[4] epsilon value (Parameter of KWC model)
+
+
+It is suggest to run the executable as following command lines
+
+(Example)
+
+./main 1024 1024 1 0.045
+
+The orientaition angle of each crystal is 0, pi/6 and pi/3.
+
+With a sufficiently small value of \epsilon,
+the diffused KWD grain boundary energy also should acheive (90 degree, 135 degree, 135 degree)
+
+There are some points one should be awared of.
+
+When testing the Herring angle condition, the following \epsilon condtion is conflicting
+
+1) For a straight Grain boundary, you need to increase epsilon to maintain
+thresholding algorithm to keep going.
+
+2) To achieve the sharp interface property (Herring condition),
+epsilon sholud be sufficiently small.
+
+These conflicting condition can be compromised in a more refined grid system,
+which may increase the cost of this simulation significantly. 
