@@ -35,7 +35,6 @@ using namespace DataOut;
 int main(int argc, char *argv[]){
 
   //Read global variables from bash
-    
   //Define grid size and set model parameter epsilon
     
   int n1=atoi(argv[1]);
@@ -46,7 +45,7 @@ int main(int argc, char *argv[]){
 	/* Construct Classes */
   int const DIM=3;
   /* total number of grain */
-  const unsigned int lcount=1;
+  const unsigned int lcount=2;
   /* total number of grid point */
 	int pcount = n1*n2*n3; 
 	double dt= epsilon * epsilon; //initial choice of dt 
@@ -56,7 +55,7 @@ int main(int argc, char *argv[]){
   double *Zangles = new double[lcount]();
   double *eta = new double[pcount]();
   int *labels = new int[pcount]();
-  double *energyField = new double[pcount]();
+  double *JField = new double[pcount]();
   
   int Nthread = 1; //The number of threads to be used for FFTW
   
@@ -71,26 +70,27 @@ int main(int argc, char *argv[]){
   //Initialize crystal: set initial condition of $\theta(x)$
   InitializeCrystal::oneD_Bicrystal_configuration(n3,n2,n1,labels);
   
-  char materialType='s';
-  Material material;
+  char materialType='S';
+  Material material(n3,n2,n1,materialType);
+  material.simpleKWC_s=1.0; //set material constant value s
+  material.setUpClass(Xangles,Yangles,Zangles,labels,JField);
   
-  material.s=1.0; //set material constant value s
-  
+  //Run Primal-dual algorithm
+  material.calculateFieldJ('N');
+ 
   double PDerror=1e-6; // tolerance of Primal-dual algorithm
   int PDmaxIters=10000; // allowable iteration number of the algorithm
   //Construct PD Algorithm class
   PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,lcount,epsilon, Nthread);
   
   //Link vaiables' pointers to the PD algortihm class
-  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, energyField,materialType);
-  
-  //Run Primal-dual algorithm
-  EtaSubProblem.run(material,epsilon);
+  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField);
+  EtaSubProblem.run(epsilon);
    
   //Export $\eta$ solution in the vtk format
   //DataOut::Output2DvtuScalar(n1, n2, n3, eta, "eta", "etaSolution_", 0);
 
-  double energy = computeKWCEnergy(material.s,n1,n2,epsilon,eta,Zangles,labels);
+  double energy = computeKWCEnergy(material.simpleKWC_s,n1,n2,epsilon,eta,Zangles,labels);
   
   std::cout <<"  GB Energy:  " << energy << std::endl;
     

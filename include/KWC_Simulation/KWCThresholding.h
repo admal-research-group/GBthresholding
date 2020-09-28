@@ -52,7 +52,7 @@ public:
   
   
   void run (double epsilon);
-  void setUpProblem  (
+  void setUpClass  (
          double *eta_pointer,
          double *Xangle_pointer,
          double *Yangle_pointer,
@@ -109,7 +109,7 @@ KWCThreshold<dim>::KWCThreshold(const unsigned int n3,
 
 
 template<int dim>
-void KWCThreshold<dim>::setUpProblem(double *eta_pointer,
+void KWCThreshold<dim>::setUpClass(double *eta_pointer,
 						   double *Xangle_pointer,
 						   double *Yangle_pointer,
 						   double *Zangle_pointer,

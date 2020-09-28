@@ -69,10 +69,10 @@ class PrimalDual
     double *Yangle_pointer,
     double *Zangle_pointer,
     int *label_pointer,
-    double *energyField_pointer,
-    char materialType);
+    double *JField_pointer
+    );
     
-  void run(Material &material, double epsilon); // Code driver
+  void run(double epsilon); // Code driver
   void freeMemory ();
 		
   //The Primal-dual algorithms begins with taking these variables from external program
@@ -83,11 +83,9 @@ class PrimalDual
   double *Yangles;
   double *Zangles;
   double *eta;
-  double *energyField;
+  double *JField;
   double epsilon;
 	
-  char materialType;
-  
   private:
     
   int Nthread; // denotes the number of thread being used for FFT and iFFT
@@ -98,8 +96,6 @@ class PrimalDual
   double *psi;
   double *etaOld;
 
-  
-  void calculateEnergy (Material &material);
   void calculateEnergySmooth (double epsilon);
   double solveEta(double *eta, double *psi, double tau);
   double solvePsi (double *eta, double *etaOld,double *psi, double sigma, double alpha);
@@ -142,25 +138,21 @@ void PrimalDual<DIM>::setUpClass(double *eta_pointer,
 						   double *Yangle_pointer,
 						   double *Zangle_pointer,
 						   int *label_pointer,
-						   double *energyField_pointer,
-               char materialType_input)
+						   double *JField_pointer)
 {
   // Pointer variable memory spaces will be linked from outer pointers
   // ::Global variable within PrimalDual Class
-    
   std::cout << std::endl;
   std::cout <<"   Setting PD Algorithm workspace..." << std::endl;
   pcount = n1 * n2 * n3;
 	
-  materialType = materialType_input;
-  
 	//link pointers
 	eta= eta_pointer;
 	Xangles= Xangle_pointer; 
 	Yangles= Yangle_pointer; 
 	Zangles= Zangle_pointer; 
 	labels= label_pointer; 
-	energyField= energyField_pointer;
+	JField= JField_pointer;
 	
 	psi = new double[pcount];
 	etaOld = new double[pcount];
@@ -195,66 +187,6 @@ void PrimalDual<DIM>::setUpClass(double *eta_pointer,
 
 }
 
-	
-
-template<int DIM>
-void PrimalDual<DIM>::calculateEnergy(Material &material)
-{
-  for(int i=0; i<n3; i++)  {
-    for(int j=0;j<n2;j++)  {
-      for(int k=0;k<n1;k++){
-                
-        int xp=k+1; int xm=k-1;
-        int yp=j+1; int ym=j-1;
-        int zp=i+1; int zm=i-1;
-                
-        if(xp>n1-1)
-          xp=n1-1;
-                
-        if(yp>n2-1)
-          yp=n2-1;
-                
-        if(zp>n3-1)
-          zp=n3-1;
-                
-        if(xm<0)
-          xm=0;
-                
-        if(ym<0)
-          ym=0;
-                
-        if(zm<0)
-          zm=0;
-                
-        double local_jump_x; double local_jump_y; double local_jump_z;
-
-        local_jump_x= 1.0 * fabs(Zangles[labels[i*n1*n2+j*n1+xp]]-Zangles[labels[i*n1*n2+j*n1+xm]]);
-        local_jump_y= 1.0 * fabs(Zangles[labels[i*n1*n2+yp*n1+k]]-Zangles[labels[i*n1*n2+ym*n1+k]]);
-        local_jump_z= 1.0 * fabs(Zangles[labels[zp*n1*n2+j*n1+k]]-Zangles[labels[zm*n1*n2+j*n1+k]]);
-
-        double Misorientation =sqrt(local_jump_x * local_jump_x +
-                                    local_jump_y * local_jump_y +
-                                    local_jump_z * local_jump_z);
-        
-        double misorientationENG=0.0;
-        
-        //Unavoidably, the local jump is diffused by central Finite difference into two grid point
-        //It must have a same energy in the sense of weak form, so we take half of Jump energy
-        //on each grid point
-        
-        if(materialType=='c')  {
-         misorientationENG = 0.5 * material.computeJthetaCovarianceModel(Misorientation);
-        }else  {
-        misorientationENG = 0.5* material.computeJthetaSimpleMaterial(Misorientation);
-        }
-        
-        energyField[i*n1*n2+j*n1+k]= misorientationENG;
-				
-      }
-    }
-  }
-}
-
 template<int DIM>
 void PrimalDual<DIM>::calculateEnergySmooth(double epsilon)
 {
@@ -263,7 +195,7 @@ void PrimalDual<DIM>::calculateEnergySmooth(double epsilon)
   double e=pow(epsilon,4.0);
     
   for(int i=0;i<pcount;i++)  {
-    fftps.workspace[i]=energyField[i];
+    fftps.workspace[i]=JField[i];
   }
     
   fftw_execute(fftps.Forward);
@@ -275,14 +207,14 @@ void PrimalDual<DIM>::calculateEnergySmooth(double epsilon)
   fftw_execute(fftps.Backward);
     
   for(int i=0;i<pcount;i++){
-    energyField[i]=fftps.workspace[i];
+    JField[i]=fftps.workspace[i];
   }
 
 }
 
 
 template<int DIM>
-void PrimalDual<DIM>::run(Material &material, double epsilon)
+void PrimalDual<DIM>::run(double epsilon)
 {
   cout << "  Execute Primal-dual algorithm for eta sub problem."<<endl;
 
@@ -291,7 +223,6 @@ void PrimalDual<DIM>::run(Material &material, double epsilon)
   double etaChange;
   double psiChange;
 
-  calculateEnergy(material);
   calculateEnergySmooth (epsilon);
     
   // Control Iteration
@@ -337,7 +268,7 @@ double PrimalDual<DIM>::solveEta(double *eta, double *psi, double tau)
     for(int j=0;j<n2;j++)  {
       for(int k=0;k<n1;k++)  {
     
-        double norm = n1 * energyField[i*n1*n2+j*n1+k];
+        double norm = n1 * JField[i*n1*n2+j*n1+k];
         double qa= 1.0/epsilon+1/tau;
         double qb= psi[i*n1*n2+j*n1+k]-2.0/epsilon-1/tau-eta[i*n1*n2+j*n1+k]/tau;
         double qc= 1.0/epsilon-psi[i*n1*n2+j*n1+k] + eta[i*n1*n2+j*n1+k]/tau - norm;
@@ -361,9 +292,7 @@ template<int DIM>
 double PrimalDual<DIM>::solvePsi (double *eta, double *etaOld, double *psi, double sigma,
                                   double alpha)
 {
-	//double *second_derivative_values;
-  //second_derivative_values= (double*) calloc(3,sizeof(double));
-    
+	
   for(int i=0;i<n3;i++)  {
     for(int j=0;j<n2;j++)  {
       for(int k=0;k<n1;k++)  {

@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
   double *Zangles = new double[lcount]();
   double *eta = new double[pcount]();
   int *labels = new int[pcount]();
-  double *energyField = new double[pcount]();
+  double *JField = new double[pcount]();
   
   
   int Nthread = 1; //Number total thread to be used for FFTW
@@ -53,10 +53,10 @@ int main(int argc, char *argv[]){
   InitializeCrystal::HerringConfiguration(n3,n2,n1,labels);
   
   /* running with original KWC model*/
-  char materialType='s';
-  Material material;
-  material.s=1.0;
-  
+  char materialType='S';
+  Material material(n3,n2,n1,materialType);
+  material.simpleKWC_s=1.0; //set material constant value s
+  material.setUpClass(Xangles,Yangles,Zangles,labels,JField);
   
   //Construct PD Algorithm class
   double PDerror=1e-6; // tolerance of Primal-dual algorithm
@@ -68,9 +68,9 @@ int main(int argc, char *argv[]){
   
   KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
 
-  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, energyField,materialType);
+  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField);
   /* 'D' stands for Dirichlet boundary condition will be enfored during thresholding */
-  FastMarching.setUpProblem(eta, Xangles, Yangles, Zangles, labels, energyField,'D');
+  FastMarching.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField,'D');
     
   
   /* FFMPEG movie data */
@@ -93,7 +93,8 @@ int main(int argc, char *argv[]){
     PrepareFFMPEG2DPixels(n1,n2,0,pixels, labels, colors);
     fwrite(pixels, 1, pcount, pipeout);
     
-    EtaSubProblem.run(material, epsilon);
+    material.calculateFieldJ('N');
+    EtaSubProblem.run(epsilon);
     FastMarching.run(epsilon);
   }
 

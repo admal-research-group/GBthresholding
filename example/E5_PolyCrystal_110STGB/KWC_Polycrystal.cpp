@@ -30,8 +30,6 @@ int main(int argc, char *argv[]){
   int n3=atoi(argv[3]);
   double epsilon=atof(argv[4]);
 
-  
-  /* Construct Classes */
   int const DIM=3;
     
   //const unsigned int lcount=2;
@@ -47,19 +45,22 @@ int main(int argc, char *argv[]){
   double *Zangles = new double[lcount]();
   double *eta = new double[pcount]();
   int *labels = new int[pcount]();
-  double *energyField = new double[pcount]();
+  double *JField = new double[pcount]();
 
   int Nthread = 1; //Number total thread to be used for FFTW
   
-  //Set material type, 'c' indicates the covariance model
-  Material material;
-  char materialType='c';
+  //Set material type, 'C' indicates the covariance model
+ 
+  char materialType='C';
+  Material material(n3,n2,n1,materialType);
 
   //Designate the location of Jump function data
-  if(materialType =='c')  {
+  if(materialType =='C')  {
     int dataNum=361;
     material.setCovarianceModel(dataNum, "inputs/jfun_cu_110.txt");
   }
+  
+  material.setUpClass(Xangles,Yangles,Zangles,labels,JField);
 
   double maxZangle = 70.0* M_PI/180.0;
   InitializeCrystal::RandomCrystalConfiguration2D(n3,n2,n1,lcount,labels, maxZangle, Xangles,
@@ -73,8 +74,8 @@ int main(int argc, char *argv[]){
   
   double initThresCriteria = 2*epsilon ;
   KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
-  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, energyField,materialType);
-  FastMarching.setUpProblem(eta, Xangles, Yangles, Zangles, labels, energyField,'P');
+  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField);
+  FastMarching.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField,'P');
   
   
   /* movie data */
@@ -101,7 +102,8 @@ int main(int argc, char *argv[]){
     PrepareFFMPEG2DPixels(n1,n2,0,pixels, labels, colors);
     fwrite(pixels, 1, pcount, pipeout);
     
-    EtaSubProblem.run(material, epsilon);
+    material.calculateFieldJ('P');
+    EtaSubProblem.run(epsilon);
     FastMarching.run(epsilon);
     
   }

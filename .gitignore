@@ -1,6 +1,8 @@
+main
 *.aux
 *.blg
 *.bbl 
 *.gz
 *.log
-
+*.mp4
+*.vtu

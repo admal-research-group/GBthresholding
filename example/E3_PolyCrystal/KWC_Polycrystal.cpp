@@ -40,30 +40,34 @@ int main(int argc, char *argv[]){
   double *Zangles = new double[lcount]();
   double *eta = new double[pcount]();
   int *labels = new int[pcount]();
-  double *energyField = new double[pcount]();
+  double *JField = new double[pcount]();
 
   int Nthread = 1; //Number total thread to be used for FFTW
-  
-  //Set material type
-  char materialType='s';
-  Material material;
-  material.s = 0.93;
   
   /* Create 2D voronoi crystal, Z orientaion lies in [0,maxZangle]*/
   double maxZangle = 70.0* M_PI/180.0;
   InitializeCrystal::RandomCrystalConfiguration2D(n3,n2,n1,lcount,labels, maxZangle, Xangles,
                                                        Yangles,Zangles);
-    
+ 
+  //Set material type
+  char materialType='S';
+  Material material(n3,n2,n1,materialType);
+  material.simpleKWC_s=1.0; //set material constant value s
+  material.setUpClass(Xangles,Yangles,Zangles,labels,JField);
+ 
   //Construct PD Algorithm class
   
   double PDerror=1e-6; // tolerance of Primal-dual algorithm
   int PDmaxIters=10000; // allowable iteration number of the algorithm
   PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,lcount,epsilon, Nthread);
+  
+  //Criteria for identifying interior regions of grain
   double initThresCriteria = 2*epsilon ;
   KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
 
-  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, energyField,materialType);
-  FastMarching.setUpProblem(eta, Xangles, Yangles, Zangles, labels, energyField,'P');
+  EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField);
+  /* 'P' stands for Dirichlet boundary condition will be enfored during thresholding */
+  FastMarching.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField,'P');
   
   
   /* FFMEPG movie data */
@@ -90,7 +94,9 @@ int main(int argc, char *argv[]){
     /* add movie frame to file */
     PrepareFFMPEG2DPixels(n1,n2,0,pixels, labels, colors);
     fwrite(pixels, 1, pcount, pipeout);
-    EtaSubProblem.run(material, epsilon);
+    
+    material.calculateFieldJ('P');
+    EtaSubProblem.run(epsilon);
     FastMarching.run(epsilon);
     
   }

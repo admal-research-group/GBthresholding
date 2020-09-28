@@ -37,8 +37,7 @@ void exportOrientationInfo(int ny, int nx, int lcount, int *labels ,double *Zang
 
   fout.close();
 }
-    
-    
+  
 void Output3DvtuBinary(int nx, int ny, int nz, double *Xangles, double *Yangles, double *Zangles,
 			   int *labels, string variable_name, string s,int data_num)
 {
@@ -133,7 +132,7 @@ void Output3DvtuBinary(int nx, int ny, int nz, double *Xangles, double *Yangles,
                     fout << org << " " << org+1 << " " << org+1+nx << " " << org+nx << " "
                     << org+nx*ny << " " << org+nx*ny+1 << " " << org+nx*ny+nx+1 << " " << org+nx*ny+nx << endl;
 
-                    /*
+                  /*
                 	int org= i*nx*ny + j*nx +k;
                 	int vertex2= org+1;
                 	int vertex3= org+1+nx;
@@ -167,7 +166,7 @@ void Output3DvtuBinary(int nx, int ny, int nz, double *Xangles, double *Yangles,
                     {
                       //int out_number = count * 8;
                       //fout.write((char *) &out_number, sizeof(int) );
-            		  fout << count*8 << " ";
+            		      fout << count*8 << " ";
                       count+=1;
                     }
                     fout << std::endl;
@@ -325,7 +324,6 @@ void Output3Dvtu(int nx, int ny, int nz, double *Xangles, double *Yangles, doubl
 
   //VTK file format end
 	fout.close();
-
 }
 
 
@@ -698,8 +696,7 @@ void Output2DvtuScalar(int nx, int ny, int nz, double *data, string variable_nam
         fout.close();
         
 }
-    
-    
+  
     
 //output int type data
 void Output2dAngles(int n1, int n2, int zvalue,
@@ -708,10 +705,8 @@ void Output2dAngles(int n1, int n2, int zvalue,
   char file_number[4];
   sprintf(file_number,"%03d",data_num);
   s+=file_number; s+=".txt";
-    
   char file_name[s.size()+1];
   strcpy(file_name,s.c_str());
-    
   FILE *fptr = fopen(file_name,"w");
     
   int i = zvalue;
@@ -764,7 +759,6 @@ void PrepareFFMPEG2DPixels(int n1, int n2,int zvalue,
       pixels[j*n1+k]=colors[labels[i*n2*n1+j*n1+k]];
     }
   }
-    
 }
     
 }; //End of Name Space
