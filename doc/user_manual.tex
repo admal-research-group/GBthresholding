@@ -45,35 +45,39 @@
 
 \section{Introduction}
 
-This is the user manual for illustrating details of 
-the numerical scheme suggested in the white paper.
-The code solves simulate  the grain growth described by   
-KWC (Kobayashi--Warren--Carter) model~\cite{KWC:1998,KWC:2001,KWC:2003}
+This is the user manual for \textit{GB thresholding method}, 
+the details of which is illustrated in the numerical scheme suggested in the white paper~\cite{Jkim:2020}.
+A \texttt{C++} based template library is designed to simulate grain growth governed by   
+KWC (Kobayashi--Warren--Carter) model~\cite{KWC:1998,KWC:2001,KWC:2003}.
 
-The material free energy density of the KWC model $\mathcal{W}_{\mathrm{kwc}}$  
-is defined by two field variable: the crystal-order phase parameter $\eta$ 
-and the orientation phase parameter $\theta$. 
-The free energy of the alternate KWC on domain $\Omega$ is 
+The KWC grain boundary model of material free energy density $\mathcal{W}_{\mathrm{kwc}}$  
+is defined by two fields variable: the crystal-order phase parameter $\eta$ 
+and the orientation-phase parameter $\theta$. 
+We write the alternative form of $\mathcal{W}_{\mathrm{kwc}}$ as suggested in the
+white paper~\cite{Jkim:2020},
 \begin{equation}
 \mathcal{W}[\eta,\theta] = \int_{\Omega}
 \left[ \frac{(1-\eta)^2}{2 \epsilon} + \frac{\epsilon}{2}|\nabla \phi|^2
-+sg(\eta) \mathcal{J}\big( [\![\theta ]\!]\big) \delta(x-x_0) 
++g(\eta) \mathcal{J}\big( [\![\theta ]\!]\big) \delta(x-x_0) 
 \right]\; dV.
 \label{eqn:alternateKWC}
 \end{equation}
 where $\delta$ is the dirac-delta function, 
+$\epsilon$ the length scale parameter,
 $[\![\theta]\!]$ the jump of $\theta$, 
-$x_0$ the position of grain boundary, and 
-$\mathcal{J}\big( [\![\theta ]\!]\big): \mathbb{R}^{+} \to \mathbb{R}^{+}$
-is the non-diffused part of grain boundary energy function.
+$x_0$ the position of grain boundary.
+We take a logarithmic functio for $g(\eta)=-\log{(1-\eta)}$. 
+Lastly, the function $\mathcal{J}\big( [\![\theta ]\!]\big): \mathbb{R}^{+} \to \mathbb{R}^{+}$
+is the non-diffused part of grain boundary energy
 \footnote{In our approach, the total grain boundary energy 
 of KWC model $\gamma_{\mathrm{kwc}}$ has two parts. 
 The contribution from $\eta$ and its gradients appears as diffused 
 energy over some finite length scale, and the contribution from $\mathcal{J}$
 remains sharp.
-}
-We evolve a given polycrystal
-by iteratively solving the two optimization problems:
+}.
+
+We will evolve a given polycrystal system
+by repeatedly solving the two optimization problems:
 \begin{equation}
 \eta^{k+1}=\argmin_\eta \mathcal{W}[\eta, \theta^{k}] 
 \label{eqn:eta_sub}
@@ -82,18 +86,18 @@ by iteratively solving the two optimization problems:
 \theta^{k+1}=\argmin_\theta  \mathcal{W}[\eta^{k+1}, \theta] 
 \label{eqn:theta_sub}
 \end{equation}
-We employ separate numerical method for problem:
+We employ two separate numerical methods for each problem:
 we use the Primal-dual algorithm~\cite{Chambolle:2011,Jacobs:2019}, 
 for the first $\eta$-sub problem and thresholding method for 
 the second $\theta$-sub problem. 
-The resulting solution is motion by curvature 
+The resulting solution describes the motion by curvature 
 with anisotropic grain boundary energy
 \footnote{
 Here, the ``anisotropic" does not include GB plane inclination dependence.
 }.
 
 
-\section{Procedures}
+\section{Simulation Procedures}
 
 %The figure of flow chart
 \begin{figure}
@@ -104,31 +108,26 @@ Here, the ``anisotropic" does not include GB plane inclination dependence.
 \label{fig:flow_chart}
 \end{figure}
 
-The code is developed as $\texttt{C++}$ header-template library,
+The numerical code is developed in the form of $\texttt{C++}$ header-template library,
 which a user can freely refer. 
-\texttt{C++} Function \& Class are categorized into different header
-files based on their task. 
-These Functions \& Classes can be replaced by a user-defined form, 
-as long as the input \& output format is consistent. 
-See the list of header files in Table 1. 
+\texttt{C++} function \& class are categorized into different header
+files based on their task, see the list of header files in Table 1. 
 
 To simulate an evolution of a polycrystal, a user first needs to define 
 initial crystal on a regular rectangular domain.  
-Several initial grain configuration 
-such as bicrystal, tricrystal, and randomly distributed polycrystal
-can be easily constructed using a function defined in \texttt{InitCrystal.h}.
+Several initial grain configurations 
+such as bicrystal, tricrystal, or randomly distributed polycrystal
+can be easily constructed using functions defined in \texttt{InitCrystal.h}.
 Next, a user is required to define the jump function $\mathcal{J}\big( [\![\theta ]\!]\big)$.
-The \texttt{Material} class defined in \texttt{Material.h} is useful for defining $\mathcal{J}$.
-In the following, the \texttt{PrimalDual} class and 
-\texttt{KWCThreshold} class should be constructed to
+The \texttt{Material} class defined in \texttt{Material.h} is useful in this step.
+In the following, the two algorithm classes, \texttt{PrimalDual} and 
+\texttt{KWCThreshold}, should be constructed to
 solve $\eta$-sub problem~(\ref{eqn:eta_sub}) and 
-$\theta$-sub problem~(\ref{eqn:theta_sub}). 
-After these classes are constructed, 
+$\theta$-sub problem~(\ref{eqn:theta_sub}) respectively. 
+Once they are ready, 
 simulation will run until it reaches to a given final time. 
 The flow chart of the overall algorithm is summarized 
 in Figure~\ref{fig:flow_chart}. 
-
-
 
 \begin{table}
 \setstretch{1.2}
@@ -151,23 +150,24 @@ Header file     & Contents \\ \midrule
 
 
 \section{An example: 2-D polycrystal simulation}
+\label{sec:exampleCode}
 
 In this section, we will look into an example code file 
 \texttt{KWC\_Polycrystal.cpp} in \texttt{E5} folder
 and show how to execute this file.
 This example code simulates grain boundary motion under 
 given $\mathcal{J}\big( [\![ \theta ]\!] \big)$,
-which is fitted against FCC [110] symmetric tilt grain boundary energy. 
+which is fitted for FCC [110] symmetric tilt grain boundary energy. 
 Because this simulation includes the most of features of
 the developed code, it will be helpful to understand 
-how the steps in Fig.~\ref{fig:flow_chart} can be implemented 
+how the procedures in Fig.~\ref{fig:flow_chart} are being implemented 
 using the template library. 
 
 
 \subsection{Implementation file}
 
-We will read the implementation code file block by block. 
-A bullet point is used to emphasize the purpose of each block.  
+We will read the implementation code file \texttt{KWC\_Polycrystal.cpp} block by block. 
+Bullet points highlights the purpose of each block.  
 
 \begin{itemize} \item First, we begin by listing the required header files \end{itemize}
 \begin{tcolorbox}[breakable, enhanced]
@@ -206,22 +206,21 @@ int main(int argc, char *argv[]){
   double epsilon=atof(argv[4]);
 
   int const DIM=3;
-      
-  //const unsigned int lcount=2;
+
   const unsigned int lcount=50;
     
-  int pcount = n1*n2*n3;
+  int pcount = n1*n2*n3; //Total number of grid point
   double dt= epsilon * epsilon; //initial choice of dt
 	
-  int Nthread = 1; //Number total thread to be used for FFTW	
+  int Nthread = 1; //Total number of threads to be used	
 
 \end{lstlisting}
 \end{tcolorbox}
 
-We will have to pass the domain size $N_x,N_y,N_z$
+Note that we will have to pass the domain size $N_x,N_y,N_z$
 and the parameter $\epsilon$ 
 from the command line when we execute the code. 
-Also, note that in our thresholding scheme, 
+In our thresholding scheme, 
 the choice of $\epsilon$ determines the time step size $\delta t =\epsilon^2$.
 
 \begin{itemize} \item We declare global variables \end{itemize}
@@ -252,14 +251,14 @@ will communicate through their address.
 \end{lstlisting}
 \end{tcolorbox}
 
-This line will generate a randomly distributed 2-D polycrystal 
-with the given maximum $Z$-orientaion value, using a voronoi tessellation.
-Other crystal configurations can also 
-be found in \texttt{InitCrystal.h} header file.
-A user can also define new crystal configuration 
-independently for one's own needs.  
+These two lines of the code will generate a randomly distributed 2-D polycrystal system
+using a voronoi tessellation.
+The possible maximum $Z$-orientaion value is the provided value.
+Other crystal configurations can also be found in \texttt{InitCrystal.h} header file.
 
-\begin{itemize} \item Next, we construct a material class which calculates $\mathcal{J}$ \end{itemize}
+
+\begin{itemize} \item Next, we construct a material class 
+which calculates grain boundary energy $\mathcal{J}$ \end{itemize}
  
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -273,16 +272,15 @@ independently for one's own needs.
   }
 \end{lstlisting}
 \end{tcolorbox}
-Here, we choose the material type 'C', which stands for the material,
-of which grain boundary energy $\mathcal{J}$ is described by the 
-covariance model~\cite{Runnels:2016_1,Runnels:2016_2}.
-Then, we provide the information of $\mathcal{J}$ by
+Here, we choose the material type `C' which stands 
+for the covariance model~\cite{Runnels:2016_1,Runnels:2016_2}.
+Then, we need to provide the information of $\mathcal{J}$ by
 indicating the external data file.
 On the other hand, if a use want to simulate the original KWC model, 
-it can be done by simply designating the \texttt{materialType} as 'S'.
+it can be done by simply designating the \texttt{materialType} as `S'.
 
 \begin{itemize} \item Construct numerical algorithm \texttt{C++} classes
-and the link pointers of global variables \end{itemize}
+and link the pointers of global variables \end{itemize}
 
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -291,15 +289,17 @@ double PDerror=1e-6; // tolerance of Primal-dual algorithm
 int PDmaxIters=10000; // allowable iteration number of the algorithm
 
 PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,
-				lcount,epsilon, Nthread);
-  
-//Link pointers of Global variables to the Primal-Dual algorithm class
+		          lcount,epsilon, Nthread);
 
-EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles,
-labels, energyField,materialType);
-
+//Construct Thresholding Algorithm class		          
 double initThresCriteria = 2*epsilon ;
 KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
+  
+//Link pointers of Global variables to the algorithm classes
+
+EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles,
+                          labels, JField,materialType);
+
 FastMarching.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField,'P');
     
 \end{lstlisting}
@@ -310,6 +310,8 @@ iteration counts and stopping criteria.
 Thresholding class requires the criteria for identifying the interior regions
 of grains. The code will identify the interior grains where 
 $\mathcal{J}\big( [\![ \theta]\!]\big) <$ \texttt{initThreCrietria}.
+The argument of `P'  when we set up KWCThreshold class means that we will use
+periodic boundary condition. 
 
 \begin{itemize} \item Now, we are finally ready to run the simulation \end{itemize}
 
@@ -325,13 +327,15 @@ $\mathcal{J}\big( [\![ \theta]\!]\big) <$ \texttt{initThreCrietria}.
   }
 \end{lstlisting}
 \end{tcolorbox}
+The argument of `P'  when we calculate FieldJ again means 
+that periodic boundary condition is considered.
 
 
-\begin{itemize} \item The final step is to release memory space \end{itemize}
+\begin{itemize} \item The final step is 
+to release memory space for algorithm classes and global variables \end{itemize}
 
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
-
   EtaSubProblem.freeMemory();
   FastMarching.freeMemory();
   
@@ -348,15 +352,15 @@ This is the end of \texttt{KWC\_Polycrystal.cpp}.
 
 \subsection{Environment and Execution}
 
-In this section, we discuss required system environment 
-and how to execute the code.
+In this section, we clarify system environment requirement 
+and execution of the code.
 The developed code has been tested with 
 and has been tested with a g++ compiler. 
-Because the Primal-dual algorithm necessitates the use of 
+The Primal-dual algorithm internally necessitates the use of 
 Fast Fourier Transform (FFT) and inverse FFT,
 we borrow relevant libraries from \texttt{FFTW3} library. 
-We suggest to use a `makefile' tool to export these environment variables, 
-an example format of which is as follow.\\
+We suggest to use a `makefile' tool to export these environment variables.
+For example, a \texttt{Make} file may look like\\
 
 \begin{tcolorbox}[colback=white]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -374,7 +378,8 @@ program:
 \end{tcolorbox}
 
 For data visualization options, 
-we use \texttt{ffmpeg} libraries and \texttt{Paraview}. 
+we provide \texttt{vtu} format (can be read by \texttt{Paraveiw}) 
+and \texttt{ffmpeg} library based animation. 
 Yet, those two softwares are not mandatory. \\
 
 Once the implementation code file \texttt{KWC\_Polycrystal.cpp} 
@@ -389,19 +394,22 @@ and $\epsilon$ value.
 \end{lstlisting}
 \end{tcolorbox}
 
-\section{Data structure}
+\section{Data structure and visualization}
 
-In this section, we summarize how data is being stored in the current code 
-and recommend useful built-in \texttt{C++} functions that visualizes this data. 
-Understanding the data structure and knowing how to quickly visualize
+In this section, we summarize how variable data is being stored in the code library 
+and recommend some useful built-in \texttt{C++} functions that visualizes this data. 
+Understanding the data structure and knowing how to quickly visualize it
 will be useful, when a user wants to modify or build something more 
 on the current library for one's own purpose. 
-
+As long as the input \& output format is consistent,
+the functions \& classes provided in the library 
+can be replaced by a user-defined form.
 
 \subsection{Discrete field data stored in one dimensional array}
-Any discrete scalar field data (either 2D or 3D) in this library is saved in one dimensional array. 
+Any discrete scalar field data (either 2D or 3D) in the code library is stored in one-dimensional array. 
 The index of the array first increases in $x$ direction, then $y$ and $z$ direction. 
-In a regular square domain, the discrete field, say $\eta(x,y,z)$, can be assessed as 
+Fo example, the discrete field, say $\eta(x,y,z)$, in a regular square domain, 
+can be assessed as follow
 
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -426,8 +434,8 @@ In a regular square domain, the discrete field, say $\eta(x,y,z)$, can be assess
 
 The only exception is the orientation field $\theta$.
 In case of $\theta$, we save \texttt{int-type} labels at each grid point
-and each component of orientation values corresponding to the label is saved separately. 
-For example, the $\theta$ value in $Z$-direction at point $(x,y,z)$ 
+and the components of orientation values corresponding to the label is stored separately. 
+For example, the orientation value in $Z$-direction at point $(x,y,z)$ 
 can be assessed as follow
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -439,7 +447,7 @@ can be assessed as follow
     for(int j=0; j<n2; j++)  { //y loop
       for(int k=0; k<n1; k++)  { //x loop
         
-        Ztheta= Zangles[labels[i*n1*n2+j*n1+k]] 
+        Ztheta= Zangles[labels[i*n1*n2+j*n1+k]];
       }
      }
   }
@@ -468,17 +476,17 @@ Output2DvtuAngle(n1, n2, n3, Zangles, labels, "theta_Z", "myfile_",0);
 
 This section is devoted to introduce 
 additional features of the developed code
-that has not been included in the previous example code. 
+that has not been included in the example code in Section~\ref{sec:exampleCode}
 
-%%Work from here!!
 \subsection{Design of the jump function}
 
 The example code \texttt{Design\_J.cpp} in the \texttt{E4} folder 
 uses a Newton's iteration 
 to fit $\mathcal{J}\big( [\![ \theta]\!]\big)$ to an external grain boundary energy data. 
-The code takes an input file \texttt{STGB\_cu\_110.txt} which is 
-the covariance model prediction of FCC [110] Symmetric-tilt-grain-boundary energy~\cite{Runnels:2016_1,Runnels:2016_2}. 
-The format of the input file is as follow\\
+The code takes an input file \texttt{STGB\_cu\_110.txt},
+which is the covariance model prediction of FCC [110] Symmetric-tilt-grain-boundary energy~\cite{Runnels:2016_1,Runnels:2016_2}. 
+In fact, in the previous example code, we were actually using the $\mathcal{J}$-design results.
+The format of the input file should be as follow\\
 
 \begin{tcolorbox}[colback=white]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -496,7 +504,8 @@ The format of the input file is as follow\\
 \end{lstlisting}
 \end{tcolorbox}       
 
-To construct $\mathcal{J}$, we can call \texttt{KWCDesignJ} \texttt{C++ class}.
+To construct $\mathcal{J}$, we can call
+a \texttt{C++} class named \texttt{KWCDesignJ}. 
 We only need to provide the number of data and the name of input\&output file as follow.\\
 
 \begin{tcolorbox}[breakable, enhanced]
@@ -528,15 +537,16 @@ Then, the output file format, \texttt{J\_cu\_110.txt} can be later used for grai
 \end{lstlisting}
 \end{tcolorbox}
 
-\subsection{Setting FFMEPG for evolving grain animation}
+\subsection{(Optional) Setting FFMEPG for evolving grain animation}
 
 
 The developed code can generate grain evolution movie while simulation is running.
 This necessitates that \texttt{ffmpeg} be installed on the machine. 
-We will convert the Z-orientation value of grains into a number between 
+In the following example, 
+we will convert the Z-orientation value of grains into a number between 
 [0,255]. Then, we will use black-and-white images to collect pictures of grains 
 at each time step. 
-To do this, we need to prepare it as follow 
+To do this, we first prepare the conversion as follow 
 \\
 
 \begin{tcolorbox}[breakable, enhanced]
@@ -559,7 +569,7 @@ To do this, we need to prepare it as follow
   
 \end{lstlisting}
 \end{tcolorbox}
-Then, we use ``\texttt{PrepareFFMPEG2DPixel}" function defined it
+Now, we can use ``\texttt{PrepareFFMPEG2DPixel}" function defined it
 \texttt{DataOut.h} to convert orientation data to image
 
 \begin{tcolorbox}[breakable, enhanced]
