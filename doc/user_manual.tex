@@ -70,7 +70,7 @@ is the non-diffused part of grain boundary energy function.
 of KWC model $\gamma_{\mathrm{kwc}}$ has two parts. 
 The contribution from $\eta$ and its gradients appears as diffused 
 energy over some finite length scale, and the contribution from $\mathcal{J}$
-remain sharp.
+remains sharp.
 }
 We evolve a given polycrystal
 by iteratively solving the two optimization problems:
@@ -125,7 +125,7 @@ solve $\eta$-sub problem~(\ref{eqn:eta_sub}) and
 $\theta$-sub problem~(\ref{eqn:theta_sub}). 
 After these classes are constructed, 
 simulation will run until it reaches to a given final time. 
-The flow chart of the overall algorithm is re-summarized 
+The flow chart of the overall algorithm is summarized 
 in Figure~\ref{fig:flow_chart}. 
 
 
@@ -150,14 +150,24 @@ Header file     & Contents \\ \midrule
 \end{table}
 
 
-\section{An example code}
+\section{An example: 2-D polycrystal simulation}
 
-Now, we will look into an example code of 
-\texttt{KWC\_Polycrystal.cpp} in the folder \texttt{E5\_Polycrystal\_110STGB}.
-This code simulates grain boundary motion under 
-given $\mathcal{J}\big( [\![ \theta ]\!] \big)=[\![ \theta ]\!]$
-fitted for FCC [110] symmetric tilt grain boundary energy. 
-In the following, we use bullet points to indicate the purpose of each part. 
+In this section, we will look into an example code file 
+\texttt{KWC\_Polycrystal.cpp} in \texttt{E5} folder
+and show how to execute this file.
+This example code simulates grain boundary motion under 
+given $\mathcal{J}\big( [\![ \theta ]\!] \big)$,
+which is fitted against FCC [110] symmetric tilt grain boundary energy. 
+Because this simulation includes the most of features of
+the developed code, it will be helpful to understand 
+how the steps in Fig.~\ref{fig:flow_chart} can be implemented 
+using the template library. 
+
+
+\subsection{Implementation file}
+
+We will read the implementation code file block by block. 
+A bullet point is used to emphasize the purpose of each block.  
 
 \begin{itemize} \item First, we begin by listing the required header files \end{itemize}
 \begin{tcolorbox}[breakable, enhanced]
@@ -181,8 +191,8 @@ In the following, we use bullet points to indicate the purpose of each part.
 \end{lstlisting}
 \end{tcolorbox}
 
-\begin{itemize} \item Then, in the \texttt{main} function, we define domain size 
-and declare global variables \end{itemize}
+\begin{itemize} \item Then, in the \texttt{main} function, 
+we define domain size. \end{itemize}
 
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -203,21 +213,36 @@ int main(int argc, char *argv[]){
   int pcount = n1*n2*n3;
   double dt= epsilon * epsilon; //initial choice of dt
 	
-  //double init_epsilon;
- 
+  int Nthread = 1; //Number total thread to be used for FFTW	
+
+\end{lstlisting}
+\end{tcolorbox}
+
+We will have to pass the domain size $N_x,N_y,N_z$
+and the parameter $\epsilon$ 
+from the command line when we execute the code. 
+Also, note that in our thresholding scheme, 
+the choice of $\epsilon$ determines the time step size $\delta t =\epsilon^2$.
+
+\begin{itemize} \item We declare global variables \end{itemize}
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
   double *Xangles = new double[lcount]();
   double *Yangles = new double[lcount]();
   double *Zangles = new double[lcount]();
   double *eta = new double[pcount]();
   int *labels = new int[pcount]();
   double *JField = new double[pcount]();
-
-  int Nthread = 1; //Number total thread to be used for FFTW
 \end{lstlisting}
 \end{tcolorbox}
 
+We use pointer variables for these global variables 
+and each independent \texttt{C++} class 
+will communicate through their address. 
 
-\begin{itemize} \item Then, we construct the initial polycrstal \end{itemize}
+
+\begin{itemize} \item Then, we construct an initial polycrstal \end{itemize}
 
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -227,7 +252,9 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{tcolorbox}
 
-We note here that other crystal configurations can also 
+This line will generate a randomly distributed 2-D polycrystal 
+with the given maximum $Z$-orientaion value, using a voronoi tessellation.
+Other crystal configurations can also 
 be found in \texttt{InitCrystal.h} header file.
 A user can also define new crystal configuration 
 independently for one's own needs.  
@@ -255,7 +282,7 @@ On the other hand, if a use want to simulate the original KWC model,
 it can be done by simply designating the \texttt{materialType} as 'S'.
 
 \begin{itemize} \item Construct numerical algorithm \texttt{C++} classes
-and link global variables \end{itemize}
+and the link pointers of global variables \end{itemize}
 
 \begin{tcolorbox}[breakable, enhanced]
 \begin{lstlisting}[basicstyle=\footnotesize]
@@ -299,25 +326,42 @@ $\mathcal{J}\big( [\![ \theta]\!]\big) <$ \texttt{initThreCrietria}.
 \end{lstlisting}
 \end{tcolorbox}
 
+
+\begin{itemize} \item The final step is to release memory space \end{itemize}
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+
+  EtaSubProblem.freeMemory();
+  FastMarching.freeMemory();
+  
+  delete[] eta; eta=NULL;
+  delete[] labels; labels=NULL;
+  delete[] Xangles; Xangles=NULL;
+  delete[] Yangles; Yangles=NULL;
+  delete[] Zangles; Zangles=NULL;
+\end{lstlisting}
+\end{tcolorbox}
+
 This is the end of \texttt{KWC\_Polycrystal.cpp}. 
 
 
-\section{Environment and Execution}
+\subsection{Environment and Execution}
 
 In this section, we discuss required system environment 
-and how to execute the code.  \\
-
-The current code is has been tested with 
+and how to execute the code.
+The developed code has been tested with 
 and has been tested with a g++ compiler. 
 Because the Primal-dual algorithm necessitates the use of 
 Fast Fourier Transform (FFT) and inverse FFT,
 we borrow relevant libraries from \texttt{FFTW3} library. 
 We suggest to use a `makefile' tool to export these environment variables, 
-an example format of which is as follow
+an example format of which is as follow.\\
+
 \begin{tcolorbox}[colback=white]
 \begin{lstlisting}[basicstyle=\footnotesize]
 IDIR  += -I../../include/KWC_Simulation
-IDIR  += -I../../Eigen
+
 CC= g++
 CFLAGS += -Ofast
 CFLAGS += -std=c++14
@@ -329,13 +373,13 @@ program:
 \end{lstlisting}
 \end{tcolorbox}
 
-For data visualization, we use \texttt{ffmpeg} libraries and \texttt{Paraview}. 
-Yet, those two are optional. \\
+For data visualization options, 
+we use \texttt{ffmpeg} libraries and \texttt{Paraview}. 
+Yet, those two softwares are not mandatory. \\
 
-
-Once an implementation code \texttt{.cpp} 
+Once the implementation code file \texttt{KWC\_Polycrystal.cpp} 
 is successfully compiled, it will create an executable, 
-Say that it is `main'. The executable can be run with following arguments, 
+say that it is `main'. The executable can be run with following arguments, 
 which stands for size of computational domain $N_x,N_y,N_z$, 
 and $\epsilon$ value. 
  
@@ -345,74 +389,198 @@ and $\epsilon$ value.
 \end{lstlisting}
 \end{tcolorbox}
 
+\section{Data structure}
+
+In this section, we summarize how data is being stored in the current code 
+and recommend useful built-in \texttt{C++} functions that visualizes this data. 
+Understanding the data structure and knowing how to quickly visualize
+will be useful, when a user wants to modify or build something more 
+on the current library for one's own purpose. 
+
+
+\subsection{Discrete field data stored in one dimensional array}
+Any discrete scalar field data (either 2D or 3D) in this library is saved in one dimensional array. 
+The index of the array first increases in $x$ direction, then $y$ and $z$ direction. 
+In a regular square domain, the discrete field, say $\eta(x,y,z)$, can be assessed as 
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+  /* Example: assess eta(x,y,z) and save it to Pvalue */
+
+  double Pvlalue;
+ 
+  for(int i=0; i<n3; i++)  { // z loop
+    for(int j=0; j<n2; j++)  { //y loop
+      for(int k=0; k<n1; k++)  { //x loop
+        
+        double x = k/n1
+        double y = j/n2
+        double z = i/n3;
+ 
+        Pvalue= eta[i*n2*n1+j*n1+k]; 
+      }
+     }
+  }
+\end{lstlisting}
+\end{tcolorbox}
+
+The only exception is the orientation field $\theta$.
+In case of $\theta$, we save \texttt{int-type} labels at each grid point
+and each component of orientation values corresponding to the label is saved separately. 
+For example, the $\theta$ value in $Z$-direction at point $(x,y,z)$ 
+can be assessed as follow
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+  /* Example: assess theta_Z (x,y,z) and save it to Ztheta */
+
+  double Ztheta;
+ 
+  for(int i=0; i<n3; i++)  { // z loop
+    for(int j=0; j<n2; j++)  { //y loop
+      for(int k=0; k<n1; k++)  { //x loop
+        
+        Ztheta= Zangles[labels[i*n1*n2+j*n1+k]] 
+      }
+     }
+  }
+\end{lstlisting}
+\end{tcolorbox}
+
+\subsection{Output data in vtu format}
+
+\texttt{C++} functions defined in \texttt{DataOut.h} can be useful 
+to visualize results in a format that many visualization software (e.g. \texttt{Paraview}) 
+can read. Any scalar field data in 2D in the above data structure (one dimensional array)
+and orientation field data can be simply output to \texttt{.vtu} as follow 
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+  /* Example: Output eta and output to the file  "myeta_0.vtu" */
+Output2DvtuScalar(n1, n2, n3, eta, "eta value", "myfile_",0);
+
+ /* Example: Output Z_theta and output to the file  "mytheta_0.vtu" */
+Output2DvtuAngle(n1, n2, n3, Zangles, labels, "theta_Z", "myfile_",0); 
+\end{lstlisting}
+\end{tcolorbox}
 
 
 \section{Additional Features}
 
-I am working on it...
+This section is devoted to introduce 
+additional features of the developed code
+that has not been included in the previous example code. 
 
-%\section{Example codes}
-%
-%\subsection{KWC polycrystal simulation}
-%
-%\begin{itemize} \item Construct algorithm \texttt{C++} class
-%and link global variables \end{itemize}
-%
-%The thresholding algorithm class needs an additional parameter
-%$\xi$ which will be used as an initial criteria to identify interior regions of grain,
-%i.e. if $\mathcal{J}\big( [\![ \theta ]\!] < \xi$ which  we will consider as 
-%grain interiors. \\
-%
-%\begin{tcolorbox}[breakable, enhanced]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%double PDerror=1e-6; // tolerance of Primal-dual algorithm
-%int PDmaxIters=10000; // allowable iteration number of the algorithm
-%PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,lcount,
-%						     epsilon, Nthread);
-%
-%// Criteria for Identifying interior regions of grains
-%double initThresCriteria = 2*epsilon ; 
-%
-%KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
-%
-%EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, 
-%			labels, energyField,materialType);
-%			
-%FastMarching.setUpProblem(eta, Xangles, Yangles, Zangles, 
-%			labels, energyField,'P');  
-%\end{lstlisting}
-%\end{tcolorbox}
-%
-%\begin{itemize} \item (Optional) Setting FFMEPG for grain animation \end{itemize}
-%
-%The developed code can generate grain evolution movie while simulation is running.
-%This will necessitate that \texttt{ffmpeg} is installed on the machine. 
-%We will convert the Z-orientation value of grains into a number between 
-%[0,255]. Then, we will use black-and-white images to collect pictures of grains 
-%at each time step. \\
-%
-%\begin{tcolorbox}[breakable, enhanced]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%  
-%  /* movie data */
-%  unsigned char *pixels=new unsigned char[pcount];
-%  
-%  unsigned char *colors=new unsigned char[lcount];
-%  for(int l=0;l<lcount;l++){
-%      // Distribute colors to angles
-%        colors[l]=255*Zangles[l]/maxZangle;
-%  }
-%  
-%  char *string;
-%  asprintf(&string,"ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt gray -s 
-%   %dx%d -r 30 -i - -f mp4 -q:v 5 -an -vcodec mpeg4 out.mp4", n1,n2);
-%  
-%  //open an output pipe
-%  FILE *pipeout = popen(string, "w");
-%  
-%\end{lstlisting}
-%\end{tcolorbox}
-%
+%%Work from here!!
+\subsection{Design of the jump function}
+
+The example code \texttt{Design\_J.cpp} in the \texttt{E4} folder 
+uses a Newton's iteration 
+to fit $\mathcal{J}\big( [\![ \theta]\!]\big)$ to an external grain boundary energy data. 
+The code takes an input file \texttt{STGB\_cu\_110.txt} which is 
+the covariance model prediction of FCC [110] Symmetric-tilt-grain-boundary energy~\cite{Runnels:2016_1,Runnels:2016_2}. 
+The format of the input file is as follow\\
+
+\begin{tcolorbox}[colback=white]
+\begin{lstlisting}[basicstyle=\footnotesize]
+ # tiltAngle(deg)         # W_data
+ # ------------            -------------  
+                   0        	     0.0
+                 0.5             0.10458
+                   1            0.203463
+                 1.5            0.296963
+                   2            0.385376
+                 2.5            0.468977
+                   3            0.548028
+                 3.5            0.598243
+... (continues)
+\end{lstlisting}
+\end{tcolorbox}       
+
+To construct $\mathcal{J}$, we can call \texttt{KWCDesignJ} \texttt{C++ class}.
+We only need to provide the number of data and the name of input\&output file as follow.\\
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+int main(int argc, const char * argv[]) {
+     int nData=361;
+     KWCDesignJ optimizer(nData,"STGB_cu_110.txt","J_cu_110.txt");
+     optimizer.run(); 
+     return 0;
+}
+\end{lstlisting}
+\end{tcolorbox}
+
+
+Then, the output file format, \texttt{J\_cu\_110.txt} can be later used for grain growth simulation.\\
+\begin{tcolorbox}[colback=white]
+\begin{lstlisting}[basicstyle=\footnotesize]
+    # tiltAngle       # Jtheta # Total Energy
+ # ------------  -------------   -------------
+              0              0              0
+            0.5      0.0432744        0.10458
+              1       0.102464       0.203463
+            1.5       0.171975       0.296963
+              2       0.250429       0.385376
+            2.5       0.337459       0.468977
+              3       0.433323       0.548028
+            3.5       0.502413       0.598243
+... (continues)
+\end{lstlisting}
+\end{tcolorbox}
+
+\subsection{Setting FFMEPG for evolving grain animation}
+
+
+The developed code can generate grain evolution movie while simulation is running.
+This necessitates that \texttt{ffmpeg} be installed on the machine. 
+We will convert the Z-orientation value of grains into a number between 
+[0,255]. Then, we will use black-and-white images to collect pictures of grains 
+at each time step. 
+To do this, we need to prepare it as follow 
+\\
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+  /* movie data */
+  unsigned char *pixels=new unsigned char[pcount];
+  
+  unsigned char *colors=new unsigned char[lcount];
+  for(int l=0;l<lcount;l++){
+      // Distribute colors to angles
+        colors[l]=255*Zangles[l]/maxZangle;
+  }
+  
+  char *string;
+  asprintf(&string,"ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt gray -s 
+   %dx%d -r 30 -i - -f mp4 -q:v 5 -an -vcodec mpeg4 out.mp4", n1,n2);
+  
+  //open an output pipe
+  FILE *pipeout = popen(string, "w");
+  
+\end{lstlisting}
+\end{tcolorbox}
+Then, we use ``\texttt{PrepareFFMPEG2DPixel}" function defined it
+\texttt{DataOut.h} to convert orientation data to image
+
+\begin{tcolorbox}[breakable, enhanced]
+\begin{lstlisting}[basicstyle=\footnotesize]
+  for (int i =0 ; i<20 ; i++)
+  {
+    std::cout << "  " << i << "time-step begins...." << std::endl;
+    PrepareFFMPEG2DPixels(n1,n2,0,pixels, labels, colors);
+    fwrite(pixels, 1, pcount, pipeout);
+    material.calculateFieldJ('P');
+    EtaSubProblem.run(epsilon);
+    FastMarching.run(epsilon);
+  }
+\end{lstlisting}
+\end{tcolorbox}
+
+
+
+
+\newpage
+
 %\begin{itemize} \item Run simulation \end{itemize}
 %We take 200 time steps, and the pixel grain data will be 
 %reformatted to black-and-white image data. \\
@@ -429,31 +597,6 @@ I am working on it...
 %  }
 %\end{lstlisting}
 %\end{tcolorbox}
-%
-%\begin{itemize} \item Release memory space \end{itemize}
-%
-%We release memory space. In this case, we also need to take care of
-%the memory space used for the thresholding class. 
-%If one used \texttt{ffmpeg}, ones need to flush out the command 
-%to the shell. 
-%\begin{tcolorbox}[breakable, enhanced]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%  fflush(pipeout);
-%  pclose(pipeout);
-%
-%  EtaSubProblem.freeMemory();
-%  FastMarching.freeMemory();
-%  
-%  delete[] eta; eta=NULL;
-%  delete[] labels; labels=NULL;
-%  delete[] Xangles; Xangles=NULL;
-%  delete[] Yangles; Yangles=NULL;
-%  delete[] Zangles; Zangles=NULL;
-%\end{lstlisting}
-%\end{tcolorbox}
-%
-%This is the end of example implementation code file. 
-%
 %
 %\section{Additional features}
 %
