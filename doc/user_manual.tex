@@ -51,22 +51,22 @@ A \texttt{C++} based template library is designed to simulate grain growth gover
 KWC (Kobayashi--Warren--Carter) model~\cite{KWC:1998,KWC:2001,KWC:2003}.
 
 The KWC grain boundary model of material free energy density $\mathcal{W}_{\mathrm{kwc}}$  
-is defined by two fields variable: the crystal-order phase parameter $\eta$ 
+is defined by two field variables: the crystal-order phase parameter $\eta$ 
 and the orientation-phase parameter $\theta$. 
-We write the alternative form of $\mathcal{W}_{\mathrm{kwc}}$ as suggested in the
-white paper~\cite{Jkim:2020},
+We write the alternative form of $\mathcal{W}_{\mathrm{kwc}}$~in the white paper~\cite{Jkim:2020}
+takes argument of continuous function $\eta$ and piecewise constant function $\theta$
 \begin{equation}
-\mathcal{W}[\eta,\theta] = \int_{\Omega}
+\mathcal{W}_{\mathrm{kwc}}[\eta,\theta] = \int_{\Omega}
 \left[ \frac{(1-\eta)^2}{2 \epsilon} + \frac{\epsilon}{2}|\nabla \phi|^2
 +g(\eta) \mathcal{J}\big( [\![\theta ]\!]\big) \delta(x-x_0) 
-\right]\; dV.
+\right]\; dV,
 \label{eqn:alternateKWC}
 \end{equation}
 where $\delta$ is the dirac-delta function, 
 $\epsilon$ the length scale parameter,
 $[\![\theta]\!]$ the jump of $\theta$, 
 $x_0$ the position of grain boundary.
-We take a logarithmic functio for $g(\eta)=-\log{(1-\eta)}$. 
+We take a logarithmic $g(\eta)=-\log{(1-\eta)}$. 
 Lastly, the function $\mathcal{J}\big( [\![\theta ]\!]\big): \mathbb{R}^{+} \to \mathbb{R}^{+}$
 is the non-diffused part of grain boundary energy
 \footnote{In our approach, the total grain boundary energy 
@@ -91,11 +91,7 @@ we use the Primal-dual algorithm~\cite{Chambolle:2011,Jacobs:2019},
 for the first $\eta$-sub problem and thresholding method for 
 the second $\theta$-sub problem. 
 The resulting solution describes the motion by curvature 
-with anisotropic grain boundary energy
-\footnote{
-Here, the ``anisotropic" does not include GB plane inclination dependence.
-}.
-
+with grain boundary energy with arbitrary function of misorientation.
 
 \section{Simulation Procedures}
 
@@ -585,155 +581,6 @@ Now, we can use ``\texttt{PrepareFFMPEG2DPixel}" function defined it
   }
 \end{lstlisting}
 \end{tcolorbox}
-
-
-
-
-\newpage
-
-%\begin{itemize} \item Run simulation \end{itemize}
-%We take 200 time steps, and the pixel grain data will be 
-%reformatted to black-and-white image data. \\
-%\begin{tcolorbox}[breakable, enhanced]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%  //Start Dynamics
-%  for (int i =0 ; i<200 ; i++)
-%  {
-%    PrepareFFMPEG2DPixels(n1,n2,0,pixels, labels, colors);
-%    fwrite(pixels, 1, pcount, pipeout);
-%      
-%    EtaSubProblem.run(material, epsilon);
-%    FastMarching.run(epsilon);
-%  }
-%\end{lstlisting}
-%\end{tcolorbox}
-%
-%\section{Additional features}
-%
-%The main advantage of using the alternate KWC model is
-%that one can freely construct the function $\mathcal{J}$ in Eq~(\ref{eqn:alternateKWC}).
-%In this example, we will how to use alternate simulation. 
-% 
-%\subsubsection{Design the jump function}
-%
-%The example code \texttt{Design\_J.cpp} uses a Newton's iteration 
-%to fit $\mathcal{J}\big( [\![ \theta]\!]\big)$ to an external grain boundary energy data. 
-%The code takes an input file \texttt{STGB\_cu\_110.txt} which is 
-%the covariance model prediction of FCC [110] Symmetric-tilt-grain-boundary energy~\cite{Runnels:2016_1,Runnels:2016_2}. 
-%The format of the input file is as follow\\
-%
-%\begin{tcolorbox}[colback=white]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-% # tiltAngle(deg)         # W_data
-% # ------------            -------------  
-%                   0        	     0.0
-%                 0.5             0.10458
-%                   1            0.203463
-%                 1.5            0.296963
-%                   2            0.385376
-%                 2.5            0.468977
-%                   3            0.548028
-%                 3.5            0.598243
-%... (continues)
-%\end{lstlisting}
-%\end{tcolorbox}       
-%
-%To construct $\mathcal{J}$, we can call \texttt{KWCDesignJ} \texttt{C++ class}.
-%We only need to provide the number of data and the name of input\&output file as follow.\\
-%
-%\begin{tcolorbox}[breakable, enhanced]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%int main(int argc, const char * argv[]) {
-%     int nData=361;
-%     KWCDesignJ optimizer(nData,"STGB_cu_110.txt","J_cu_110.txt");
-%     optimizer.run(); 
-%     return 0;
-%}
-%\end{lstlisting}
-%\end{tcolorbox}
-%
-%
-%Then, the output file format, \texttt{J\_cu\_110.txt} can be later used for grain growth simulation.\\
-%\begin{tcolorbox}[colback=white]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%    # tiltAngle       # Jtheta # Total Energy
-% # ------------  -------------   -------------
-%              0              0              0
-%            0.5      0.0432744        0.10458
-%              1       0.102464       0.203463
-%            1.5       0.171975       0.296963
-%              2       0.250429       0.385376
-%            2.5       0.337459       0.468977
-%              3       0.433323       0.548028
-%            3.5       0.502413       0.598243
-%... (continues)
-%\end{lstlisting}
-%\end{tcolorbox}      
-%
-%\subsection{Running KWC polycrystal simulation with the designed J}
-%
-%Now, we are ready to simulate grain evolution 
-%with crystal symmetry-invariance grain boundary energy. 
-%Most of program structure is same with the previous polycrystal simulation code, 
-%but we only need to simply replace the material type as `c' and designate 
-%the $\mathcal{J}$ data.\\
-%
-%\begin{itemize} \item Set material types\end{itemize}
-%
-%\begin{tcolorbox}[breakable, enhanced]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%char materialType='c';
-%  Material material;
-%
-%  if(materialType =='c')  {
-%    material.setCovarianceModel(361, "inputs/jfun_cu_110.txt");
-%  }
-%\end{lstlisting}
-%\end{tcolorbox}
-%
-%
-%
-%
-%\section{Environment}
-%The current code is written by \texttt{C++} language 
-%and has been tested with g++ compiler. 
-%For Fast Fourier Transform (FFT) and inverse FFT, 
-%it borrows necessary operators from  \texttt{FFTW3} library. 
-%Simple linear algebra is operated through a \texttt{Eigen} software. 
-%We suggest to use a `makefile' tool to export these environment variables, 
-%an example format of which is as follow
-%\begin{tcolorbox}[colback=white]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%IDIR  += -I../../include/KWC_Simulation
-%IDIR  += -I../../Eigen
-%CC= g++
-%CFLAGS += -Ofast
-%CFLAGS += -std=c++14
-%CFLAGS += -lm
-%CFLAGS += -lfftw3_threads
-%CFLAGS += -lfftw3
-%program: 
-%	$(CC) KWC_driver.cpp -o main $(CFLAGS) $(IDIR)
-%\end{lstlisting}
-%\end{tcolorbox}
-%For data visualization, we use \texttt{ffmpeg} libraries and \texttt{Paraview}. 
-%Yet, those two are not mandatory.  
-%
-%
-%
-%\subsection{Compile and Execution}
-%
-%Once an implementation code \texttt{.cpp} 
-%is successfully compiled, it will create an executable, 
-%Say that it is `main'. The executable can be run with following arguments, 
-%which stands for size of computational domain $N_x,N_y,N_z$, 
-%and $\epsilon$ value. 
-% 
-%\begin{tcolorbox}[colback=white]
-%\begin{lstlisting}[basicstyle=\footnotesize]
-%./main 512 512 1 0.05
-%\end{lstlisting}
-%\end{tcolorbox}
 
 
 \bibliographystyle{unsrt}
