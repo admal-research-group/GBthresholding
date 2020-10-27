@@ -301,6 +301,12 @@ bool KWCThreshold<dim>::thresholding()
       double dy1=grid[y*n1+x]-grid[ym*n1+x];
       double dy2=grid[yp*n1+x]-grid[y*n1+x];
       double dx, dy;
+	  
+	  // Root does not have minimum value in this loop,
+      // since you are considering visited neighbor cell together in this step.
+      // First, we judge where has closer approximation (where is upwind)
+      // Here, "upwind" only means which is the relevent direction on grid
+      // it does not consider the direction of the flow
       
       if(dx1+dx2>0){
             dx=dx1;
@@ -313,6 +319,10 @@ bool KWCThreshold<dim>::thresholding()
             dy=dy2;
       }
 
+	  // After we decided which the upwind,
+      // you consider whether or not accepting the update from each direction
+      // This may consider update from other direction
+	  
       double norm=sqrt(dx*dx+dy*dy);
       int a,b;
       
