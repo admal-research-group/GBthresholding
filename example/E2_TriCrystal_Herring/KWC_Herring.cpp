@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
   Yangles[0]=0; Yangles[1]=0; Yangles[2]=0;
   Zangles[0]=0.0 * (M_PI)/6 ; Zangles[1]=(M_PI)/6; Zangles[2]=2*(M_PI)/6;
   
-  InitializeCrystal::HerringConfiguration(n3,n2,n1,labels);
+  InitializeCrystal::tripleConfiguration(n3,n2,n1,labels);
   
   /* running with original KWC model*/
   char materialType='S';

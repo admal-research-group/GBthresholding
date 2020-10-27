@@ -297,27 +297,29 @@ void Temp_configuration(int n3, int n2, int n1, int *labels)
     }
 }
 
-void Triple_configuration(int n3, int n2, int n1, int *labels)
+void tripleConfiguration(int n3, int n2, int n1, int *labels)
 {
-    std::cout<< "   Initialize with a triple configuration \n";
-    for(int i=0; i<n3; i++) // z loop
-    {
-        for(int j=0; j<n2; j++) //y loop
-        {
-            for(int k=0; k<n1; k++) //x loop
-            {	
-                double x = k/(n1*1.0); double y = j/(n2*1.0); double z = i/(n3*1.0);
-                double min=FLT_MAX; int minIndex=0;
-				
-            if(x<0.8){
-                minIndex=1;
-            }else
-            {
-                if(y>=0.5){minIndex=0;}
-				else{minIndex=2;}    
-            }
-				labels[i*n1*n2+j*n1+k]=minIndex; //labels denotes
-           } 
+  std::cout<< "   Initialize with a triple configuration \n";
+  
+  for(int i=0; i<n3; i++){ // z loop
+    for(int j=0; j<n2; j++){ //y loop
+      for(int k=0; k<n1; k++){ //x loop
+        
+        double x = k/(n1*1.0); double y = j/(n2*1.0); double z = i/(n3*1.0);
+        int minIndex=99999;
+        
+        if(y>0.8 || y<0.2){
+          minIndex=1;
+        }else{
+          if(x<0.25||x>0.75){
+            minIndex=0;
+          }else{
+          minIndex=2;
+          }
+        }
+        
+        labels[i*n1*n2+j*n1+k]=minIndex; //labels denotes
+           }
         }
     }
 }
