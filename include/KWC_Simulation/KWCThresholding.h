@@ -291,36 +291,60 @@ bool KWCThreshold<dim>::thresholding()
       int x = root_index % n1;
       int y = ( root_index % (n1*n2)) /n1;
       int z = root_index / (n1*n2);
-         
-      //Method 1 Begin
-      int ml= z*n2*n1+ y*n1 + x;
-      double min=grid[ml];
-		   
-      //How many neighbors you will consider? 6 or 26
-      //for(int k=0;k<6;k++){
-      for(int m=0;m<26;m++) {
-        
-        int xn= (x+threeDNeighbors[m][0]+n1) % n1;
-        int yn= (y+threeDNeighbors[m][1]+n2) % n2;
-        int zn= (z+threeDNeighbors[m][2]+n3) % n3;
-        int neighbor=zn*n2*n1+yn*n1+xn;
-
-        if(grid[neighbor]<min) {
-          min=grid[neighbor];
-          ml=neighbor;
-        }
+    
+      int xp=(x+1)%n1;
+      int xm=(x-1+n1)%n1;
+      int yp=(y+1)%n2;
+      int ym=(y-1+n2)%n2;
+      double dx1=grid[y*n1+x]-grid[y*n1+xm];
+      double dx2=grid[y*n1+xp]-grid[y*n1+x];
+      double dy1=grid[y*n1+x]-grid[ym*n1+x];
+      double dy2=grid[yp*n1+x]-grid[y*n1+x];
+      double dx, dy;
+      
+      if(dx1+dx2>0){
+            dx=dx1;
+      }else{
+            dx=dx2;
       }
+      if(dy1+dy2>0){
+            dy=dy1;
+      }else{
+            dy=dy2;
+      }
+
+      double norm=sqrt(dx*dx+dy*dy);
+      int a,b;
+      
+      if(dx/norm>.5){
+              a=1;
+      }else if(dx/norm>-.5){
+              a=0;
+      }else{
+              a=-1;
+      }
+      if(dy/norm>.5){
+              b=1;
+      }else if(dy/norm>-.5){
+              b=0;
+      }else{
+              b=-1;
+      }
+
+      //calculate the direction of the characteristic
+      int cx=(x-a+n1)%n1;
+      int cy=(y-b+n2)%n2;
 
 			//Threshold
       double previousLabel = labels[root_index];
-      labels[root_index]=labels[ml];
+      labels[root_index]=labels[cy*n1+cx];
 
       //We will count how many labels are change
       if(previousLabel != labels[root_index])  {
         changeCount +=1;
       }
            
-      int updatedIndex = y*n1+x;
+      int updatedIndex = cy*n1+cx;
       
       if(watch_fastmarching==1)   {
         FMwatch.videoUpdate_pixel(updatedIndex);
