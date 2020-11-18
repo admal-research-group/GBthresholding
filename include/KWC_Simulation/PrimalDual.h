@@ -307,40 +307,11 @@ double PrimalDual<DIM>::solvePsi (double *eta, double *etaOld, double *psi, doub
     for(int j=0;j<n2;j++)  {
       for(int k=0;k<n1;k++)  {
 
-        //Neumann Condition
-        //double etaBar = eta[i*n2*n1+j*n1+k]+ alpha * (eta[i*n2*n1+j*n1+k]-etaOld[i*n2*n1+j*n1+k]);
-        //fftps.workspace[i*n2*n1+j*n1+k]=epsilon*( psi[i*n2*n1+j*n1+k]/sigma + etaBar);
-
-        //Periodic condition
-        calc_second_derivative (psi,i,j,k,n3,n2,n1,second_derivative_values);
-        double psi_xx=second_derivative_values[0];
-        double psi_yy=second_derivative_values[1];
-        double psi_zz=second_derivative_values[2];
-
-        calc_second_derivative (eta,i,j,k,n3,n2,n1,second_derivative_values);
-
-        double eta_xx=second_derivative_values[0];
-        double eta_yy=second_derivative_values[1];
-        double eta_zz=second_derivative_values[2];
-
-        calc_second_derivative (etaOld,i,j,k,n3,n2,n1,second_derivative_values);
-        double etaOld_xx=second_derivative_values[0];
-        double etaOld_yy=second_derivative_values[1];
-        double etaOld_zz=second_derivative_values[2];
-
-        // etaxx bar is linear interpolation between etaxx_old and etaxx
-        double etaxxBar=(1+alpha)*eta_xx-alpha*etaOld_xx;
-        double etayyBar=(1+alpha)*eta_yy-alpha*etaOld_yy;
-        double etazzBar=(1+alpha)*eta_zz-alpha*etaOld_zz;
-
-        fftps.workspace[i*n2*n1+j*n1+k][0]=-epsilon*
-            (
-             psi_xx+psi_yy+psi_zz +
-             sigma*(etaxxBar+etayyBar+etazzBar)
-            ) /sigma;
+        double etaBar = eta[i*n2*n1+j*n1+k]+ alpha * (eta[i*n2*n1+j*n1+k]-etaOld[i*n2*n1+j*n1+k]);
         
-        fftps.workspace[i*n2*n1+j*n1+k][1]=0;
-                
+        fftps.workspace[i*n2*n1+j*n1+k][0]=-epsilon*( psi[i*n2*n1+j*n1+k]/sigma + etaBar);
+        fftps.workspace[i*n2*n1+j*n1+k][1]=0.0;
+
       }
     }
   }
@@ -350,10 +321,13 @@ double PrimalDual<DIM>::solvePsi (double *eta, double *etaOld, double *psi, doub
   //zeroing
   fftps.workspace[0][0]=0.0;
   fftps.workspace[0][1]=0.0;
-    
+  
+  
+  
+  //Multiplying with (-fftps.kernel[i] is equivalent to opearting Laplacian)
   for(int i=0;i<pcount;i++){
-    fftps.workspace[i][0]/=(1+epsilon*fftps.kernel[i]/sigma)*pcount;
-    fftps.workspace[i][1]/=(1+epsilon*fftps.kernel[i]/sigma)*pcount;
+    fftps.workspace[i][0]*=(-fftps.kernel[i]) / ((1+epsilon*fftps.kernel[i]/sigma)*pcount);
+    fftps.workspace[i][1]*=(-fftps.kernel[i]) / ((1+epsilon*fftps.kernel[i]/sigma)*pcount);
    }
 
   fftw_execute(fftps.Backward);
