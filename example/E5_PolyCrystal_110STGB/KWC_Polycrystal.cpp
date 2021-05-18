@@ -72,7 +72,7 @@ int main(int argc, char *argv[]){
   int PDmaxIters=10000; // allowable iteration number of the algorithm
   PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,lcount,epsilon, Nthread);
   
-  double initThresCriteria = 2*epsilon ;
+  double initThresCriteria = 0.9;
   KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
   EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField);
   FastMarching.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField,'P');

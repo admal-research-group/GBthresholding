@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
   PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,lcount,epsilon, Nthread);
   
   //Criteria for identifying interior regions of grain
-  double initThresCriteria = 2*epsilon ;
+  double initThresCriteria = 0.9 ;
   KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
 
   EtaSubProblem.setUpClass(eta, Xangles, Yangles, Zangles, labels, JField);
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]){
   clock_t t;
   t = clock();
  
-  for (int i =0 ; i<20 ; i++)
+  for (int i =0 ; i<150 ; i++)
   {
     std::cout << "  " << i << "time-step begins...." << std::endl;
     /* add movie frame to file */

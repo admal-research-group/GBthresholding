@@ -64,7 +64,7 @@ int main(int argc, char *argv[]){
   PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,lcount,epsilon, Nthread);
   
   //Criteria for identifying interior regions of grain
-  double initThresCriteria = 2 * epsilon ;
+  double initThresCriteria = 0.9;
   
   KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]){
   FILE *pipeout = popen(string, "w");
   
   //Start Dynamics
-  for (int i =0 ; i<20 ; i++)
+  for (int i =0 ; i<200 ; i++)
   {
     PrepareFFMPEG2DPixels(n1,n2,0,pixels, labels, colors);
     fwrite(pixels, 1, pcount, pipeout);

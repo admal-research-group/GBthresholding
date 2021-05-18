@@ -288,7 +288,7 @@ PrimalDual<DIM> EtaSubProblem(n3, n2, n1, PDerror, PDmaxIters,
 		          lcount,epsilon, Nthread);
 
 //Construct Thresholding Algorithm class		          
-double initThresCriteria = 2*epsilon ;
+double initThresCriteria = 0.9 ;
 KWCThreshold<DIM> FastMarching(n3,n2,n1,lcount,initThresCriteria);
   
 //Link pointers of Global variables to the algorithm classes
