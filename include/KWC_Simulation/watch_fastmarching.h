@@ -27,7 +27,7 @@ class WatchFastMarching
 
 	//void run ();
 	void videoInitialize();
-	void videoUpdate_pixel(int updated_index);
+	void videoUpdatePixel(int updated_index);
 	void videoClose();
 
 	private:
@@ -94,7 +94,7 @@ void WatchFastMarching::videoInitialize ()
 }
 
 
-void WatchFastMarching::videoUpdate_pixel (int updated_index)
+void WatchFastMarching::videoUpdatePixel (int updated_index)
 {
 	pixels[updated_index]=colors[labels[updated_index]+1];
 

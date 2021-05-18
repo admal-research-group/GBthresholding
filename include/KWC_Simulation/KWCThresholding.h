@@ -1,20 +1,7 @@
-// algo_primal_dual.h
-// Created by Jaekwang Kim on 11/10/19.
-// Header file includes KWC Thresholding dynamics using Fast Marching Method 
-
-// Being updated:: Outsourcing thresholidng value
-
 /*
-It  reads \eta (x) and the grain boundary 
-	Input :: n1,n2,n3, 
-	Xangles(x) Yangles(x) Zangles(x), Label(x) 
-
-	At time t=0,  Xangles(x) and Label(x)
-	can be generated from functions such as init_1d_bicrystal
- 
-Output :: eta(x)
+Updated version v2, May, 2nd, 2021
+Theta 'label' boundary condition has been generalized.
 */
-
 
 #ifndef algo_KWCThreshold_h
 #define algo_KWCThreshold_h
@@ -41,7 +28,7 @@ public:
                const unsigned int n2,
                const unsigned int n1,
                const unsigned int lcount,
-               double initThresCriteria);
+               double etaCutCriteria);
     	
   double *eta;
   double *Xangles;
@@ -62,9 +49,9 @@ public:
          char boundary);
 						   
   void freeMemory ();
-  double thresCriteria;
-  int watch_fastmarching=0;
-  bool STUCK;
+  double etaCutCriteria;
+  int watch_fastmarching;
+  bool stuckTest;
 
 private:
   
@@ -73,7 +60,6 @@ private:
   int lcount;
     
   double *grid; //temporary grid where Fast Marching Method proceeds.
-  double *indicator;
   i_heap heap;
 		
   vector<vector<int> > threeDNeighbors; //26 neighbor points in 3d
@@ -93,8 +79,8 @@ KWCThreshold<dim>::KWCThreshold(const unsigned int n3,
  const unsigned int n2,
  const unsigned int n1,
  const unsigned int lcount,
- double initThresCriteria)
-:n3(n3), n2(n2), n1(n1), lcount(lcount), thresCriteria(initThresCriteria)
+ double etaCutCriteria)
+:n3(n3), n2(n2), n1(n1), lcount(lcount), etaCutCriteria(etaCutCriteria)
 {
   std::cout << std::endl;
   std::cout << "  [Constructor] C++ Thresholding Class is being created..." << std::endl;
@@ -102,9 +88,14 @@ KWCThreshold<dim>::KWCThreshold(const unsigned int n3,
   std::cout << "  n2:   " << n2 <<std::endl;
   std::cout << "  n3:   " << n3 <<std::endl;
 	std::cout << "  lcount:   " << lcount <<std::endl;
-	std::cout << "  init_thresCriteria :   " << thresCriteria <<std::endl;
+	std::cout << "  init_etaCutCriteria :   " << etaCutCriteria <<std::endl;
   std::cout << "  [Constructor] Class construction ended!" << std::endl;
-    
+  
+  pcount = n1 * n2 * n3;
+  
+  grid = new double[pcount]();
+  heap = i_heap_create_empty_heap(pcount, pcount);
+  
 }
 
 
@@ -118,9 +109,9 @@ void KWCThreshold<dim>::setUpClass(double *eta_pointer,
 						   char boundary)
 {
   std::cout << "   Setting Fast Marching workspace..." << std::endl;
+  
   thetaBoundary = boundary;
-  pcount = n1 * n2 * n3;
-    
+
 	//link pointers
 	eta= eta_pointer;
 	Xangles= Xangle_pointer; 
@@ -128,12 +119,7 @@ void KWCThreshold<dim>::setUpClass(double *eta_pointer,
 	Zangles= Zangle_pointer; 
 	labels= label_pointer; 
 	energy= Energy_pointer;
-
-	grid = new double[pcount]();
-	indicator = new double[pcount]();
-
-  heap = i_heap_create_empty_heap(pcount, pcount);
-    
+  
 	//Create neighbor vector indexes
   std::vector<int>  vector3d;
   for(int i=-1;i<2;i++)  {
@@ -153,7 +139,9 @@ void KWCThreshold<dim>::setUpClass(double *eta_pointer,
        }
      }
     }
-  
+
+  /*deault setting is made in Constructor*/
+  watch_fastmarching=0;
 }
 
 
@@ -168,9 +156,7 @@ void KWCThreshold<dim>::identifyInitBoundary(double epsilon)
    // as we compare "J(||\theta||)" to some thresholding criteria
    // to identify Initial grain boundary.
    // Thus, we have to release thresholding criteria to some degree as simulation goes.
-    
-  bool stuckTest = true;
-    
+  
 	if(thetaBoundary=='D')
 	{ 
 		cout<< "  Dirichlet boundary condition is implemented" <<endl;
@@ -183,43 +169,24 @@ void KWCThreshold<dim>::identifyInitBoundary(double epsilon)
   //testField=new double[pcount];
 
   //Start search GBs
-  do  {
     for(int i=0; i<n3; i++)  {
       for(int j=0;j<n2;j++){
         for(int k=0;k<n1;k++)  {
 
-          int xm=(k-1+n1)%n1; int xp=(k+1+n1)%n1;
-			    int ym=(j-1+n2)%n2; int yp=(j+1+n2)%n2;
-			    int zm=(i-1+n3)%n3; int zp=(i+1+n3)%n3;
-    
-          double txp = n1  * 1.0 * (energy[i*n2*n1+j*n1+xp]) ;
-          double txm = n1  * 1.0 * (energy[i*n2*n1+j*n1+xm]) ;
-          double typ = n2  * 1.0 * (energy[i*n2*n1+yp*n1+k]) ;
-          double tym = n2  * 1.0 * (energy[i*n2*n1+ym*n1+k]) ;
-                
-          double norm= 0.5*sqrt(txp*txp+txm*txm) + 0.5*sqrt(typ*typ+tym*tym);
-              
-          //double metric = norm/ sqrt(1+norm*norm);
-			    //testField[i*n2*n1+j*n1+k]=norm;
-			   
-          if( norm < thresCriteria ){
-          //if( metric < 2*epsilon ){
-          // IF this is too narrow, It cannot go , // This result stucking motion
+          //if( norm < etaCutCriteria ){
+          if( eta[i*n2*n1+j*n1+k] > etaCutCriteria ){
+          
           //Initial condition of FM, Basins of grain
-            indicator[i*n2*n1+j*n1+k]=0.0;
             grid[i*n2*n1+j*n1+k]=0.0;
            }else  {
             stuckTest = false;
-					  indicator[i*n2*n1+j*n1+k]=FLT_MAX;
             grid[i*n2*n1+j*n1+k]=FLT_MAX;
            }
 				
-        
 				  if(thetaBoundary=='D')  {
   
 					  if(k<1 || k>n1-2 || j < 1 || j>n2-2)  {
 					  // if \theta is Dirichlet, you don't need to consider them
-					    indicator[i*n2*n1+j*n1+k]=0.0;
 					    grid[i*n2*n1+j*n1+k]=0.0;
 					  }
 				  }
@@ -227,12 +194,10 @@ void KWCThreshold<dim>::identifyInitBoundary(double epsilon)
     }
   }
   
-        
-  }while(stuckTest==true);
-  
   //Make the below line alive if you want to watch how interior region is recognized
-  //Output2DvtuScalar(n1, n2, n3, indicator, "indicator", "vtu/indicator_",0);
- 
+  //Output2DvtuScalar(n1, n2, n3, grid, "indicator", "indicator_",0);
+  //Output2DvtuScalar(n1, n2, n3, eta, "eta", "eta_",0);
+  //exit(1);
 }
 
 
@@ -254,19 +219,34 @@ bool KWCThreshold<dim>::thresholding()
             int interior=1;
             for(int m=0; m<26; m++)  {
             
-              int x=k+threeDNeighbors[m][0]; if(x>n1-1){x=0;}else if(x<0){x=n1-1;}
-              int y=j+threeDNeighbors[m][1]; if(y>n2-1){y=0;}else if(y<0){y=n2-1;}
-              int z=i+threeDNeighbors[m][2]; if(z>n3-1){z=0;}else if(z<0){z=n3-1;}
+              //jkc: BC implied here ...
+              int x=k+threeDNeighbors[m][0];
+              int y=j+threeDNeighbors[m][1];
+              int z=i+threeDNeighbors[m][2];
 						
-              if(grid[z*n2*n1 + y*n1 + x]==FLT_MAX)  {
+              if(thetaBoundary == 'N' || 'D')
+              {
+                if(x>n1-1){x=n1-1;}else if(x<0){x=0;}
+                if(y>n2-1){y=n2-1;}else if(y<0){y=0;}
+                if(z>n3-1){z=n3-1;}else if(z<0){z=0;}
+              }
+              else if(thetaBoundary == 'P')
+              {
+                x=(x+n1)%n1;
+                y=(y+n2)%n2;
+                z=(z+n3)%n3;
+              }
+              
+              if(grid[z*n2*n1 + y*n1 + x]==FLT_MAX) {
                 interior=0;
               }
                     
             }
-            if(!interior) {//if 'interior==0' , they are 'the FRONT'
-              i_heap_insert_node_with_location(&heap, index, grid[index], index);
-            }
-          }
+          
+           if(!interior) {//if 'interior==0' , they are 'the FRONT'
+             i_heap_insert_node_with_location(&heap, index, grid[index], index);
+           }
+        }
 	    }//k_loop
 	  }//j_loop
   }//i_loop
@@ -291,22 +271,22 @@ bool KWCThreshold<dim>::thresholding()
       int x = root_index % n1;
       int y = ( root_index % (n1*n2)) /n1;
       int z = root_index / (n1*n2);
-    
-      int xp=(x+1)%n1;
-      int xm=(x-1+n1)%n1;
-      int yp=(y+1)%n2;
-      int ym=(y-1+n2)%n2;
+      
+      //jkc: BC implied here ...
+      //int xp= x+1; if(xp>n1-1){xp=n1-1;}
+      //int xm= x-1; if(xm<0){xm=0;}
+      //int yp= y+1; if(yp>n2-1){yp=n2-1;}
+      //int ym= y-1; if(ym<0){ym=0;}
+      
+      int xm,xp,ym,yp,zm,zp;
+      examineNeighborLabel (n3,n2,n1,x,y,z,xm,xp,ym,yp,zm,zp, thetaBoundary);
+
       double dx1=grid[y*n1+x]-grid[y*n1+xm];
       double dx2=grid[y*n1+xp]-grid[y*n1+x];
       double dy1=grid[y*n1+x]-grid[ym*n1+x];
       double dy2=grid[yp*n1+x]-grid[y*n1+x];
       double dx, dy;
-	  
-	  // Root does not have minimum value in this loop,
-      // since you are considering visited neighbor cell together in this step.
-      // First, we judge where has closer approximation (where is upwind)
-      // Here, "upwind" only means which is the relevent direction on grid
-      // it does not consider the direction of the flow
+    
       
       if(dx1+dx2>0){
             dx=dx1;
@@ -318,11 +298,7 @@ bool KWCThreshold<dim>::thresholding()
       }else{
             dy=dy2;
       }
-
-	  // After we decided which the upwind,
-      // you consider whether or not accepting the update from each direction
-      // This may consider update from other direction
-	  
+      
       double norm=sqrt(dx*dx+dy*dy);
       int a,b;
       
@@ -342,9 +318,20 @@ bool KWCThreshold<dim>::thresholding()
       }
 
       //calculate the direction of the characteristic
-      int cx=(x-a+n1)%n1;
-      int cy=(y-b+n2)%n2;
-
+      int cx=x-a; if(cx>n1-1){cx=n1-1;} if(cx<0){cx=0;}
+      int cy=y-b; if(cy>n2-1){cy=n2-1;} if(cy<0){cy=0;}
+      
+      if(thetaBoundary == 'N' || 'D')
+      {
+        if(cx>n1-1){cx=n1-1;} if(cx<0){cx=0;}
+        if(cy>n2-1){cy=n2-1;} if(cy<0){cy=0;}
+      }
+      else if (thetaBoundary == 'P')
+      {
+        cx=(cx+n1)%n1;  cy=(cy+n2)%n2;
+      }
+      
+    
 			//Threshold
       double previousLabel = labels[root_index];
       labels[root_index]=labels[cy*n1+cx];
@@ -354,10 +341,10 @@ bool KWCThreshold<dim>::thresholding()
         changeCount +=1;
       }
            
-      int updatedIndex = cy*n1+cx;
+      int updatedIndex = y*n1+x;
       
       if(watch_fastmarching==1)   {
-        FMwatch.videoUpdate_pixel(updatedIndex);
+        FMwatch.videoUpdatePixel(updatedIndex);
       }
 
     }
@@ -369,7 +356,7 @@ bool KWCThreshold<dim>::thresholding()
   
   //(IF not enough points is updated...it speakouts warning
   // and suggests increase epsilon
-   if(changeCount > n2*n3 * 0.01)  {
+   if(changeCount > n2*n3 * 0.10)  {
      stuckTest =false;
    }
     
@@ -388,22 +375,28 @@ double KWCThreshold<dim>::eikonalUpdate(int x, int y, int z)
   double hz=1/(n3*1.0);
     
   int index = z*n2*n1 + y*n1 + x;
-    
-  int x_west=(x-1+n1)%n1; int x_east=(x+1+n1)%n1;
-  int y_south=(y-1+n2)%n2; int y_north=(y+1+n2)%n2;
-  int z_down = (z-1+n3)%n3; int z_up=(z+1+n3)%n3;
   
-  if(thetaBoundary=='D')
-  {
-    x_west=x-1; if(x_west<0){x_west=0;}
-    x_east=x+1; if(x_east>n1-1){x_east=n1-1;}
-    y_south=y-1; if(y_south<0){y_south=0;}
-    y_north=y+1; if(y_north>n2-1){y_north=n2-1;}
-    z_down=z-1; if(z_down<0){z_down=0;}
-    z_up=z+1;  if(z_up>n3-1){z_up=n3-1;}
+  int x_west,x_east,y_south,y_north,z_down,z_up;
+  
+  if(thetaBoundary == 'N' || 'D') {
+  
+    x_west=fmax(x-1,0);
+    x_east=fmin(n1-1,x+1);
+    y_south=fmax(y-1,0);
+    y_north=fmin(n2-1,y+1);
+    z_down=fmax(z-1,0);
+    z_up=fmin(n3-1,z+1);
+  
+  }else if (thetaBoundary == 'P') {
+    x_west=(x-1+n1)%n1;  x_east=(x+1+n1)%n1;
+    y_south=(y-1+n2)%n2;  y_north=(y+1+n2)%n2;
+    z_down = (z-1+n3)%n3; z_up=(z+1+n3)%n3;
+  }else{
+    std::cout << "Warning!! BC is not correctly input in 'eikonalUpdate(int x, int y, int z)' function "
+    << std::endl;
   }
-	
-	
+  
+  
   int west= z*n2*n1+ y*n1 + x_west;
   int east= z*n2*n1+ y*n1 + x_east;
     
@@ -508,21 +501,28 @@ int KWCThreshold<dim>::executeFastMarchingIteration()
   int zgrid[6]={0, 0, 0 ,  0, 1,-1};
   
   for(int m=0; m<6; m++)  {
-    //periodicity applied.
-    int x=(cx+xgrid[m]+n1)%n1;
-    int y=(cy+ygrid[m]+n2)%n2;
-    int z=(cz+zgrid[m]+n3)%n3;
+    
+    int x=cx+xgrid[m];
+    int y=cy+ygrid[m];
+    int z=cz+zgrid[m];
+    
+    
+    if(thetaBoundary == 'N' || 'D') {
+  
+      if(x>n1-1){x=n1-1;} if(x<0){x=0;}
+      if(y>n2-1){y=n2-1;} if(y<0){y=0;}
+      if(z>n3-1){z=n3-1;} if(z<0){z=0;}
+  
+    }else if(thetaBoundary == 'P') {
+
+      x=(x+n1)%n1;
+      y=(y+n2)%n2;
+      z=(z+n3)%n3;
+
+    }
+
 		int index= z*n2*n1 + y*n1 + x;
 		double possible = fmax(eikonalUpdate(x,y,z),*min);
-		
-		if(thetaBoundary=='D')  {
-    
-      int xn=cx+xgrid[m]; if(xn<0){xn=0;}else if(xn>n1-1){xn=n1-1;}
-      int yn=cy+ygrid[m]; if(yn<0){yn=0;}else if(yn>n2-1){yn=n2-1;}
-      int zn=cz+zgrid[m]; if(zn<0){zn=0;}else if(zn>n3-1){zn=n3-1;}
-      index= zn*n2*n1 + yn*n1 + xn;
-      possible = fmax(eikonalUpdate(xn,yn,zn),*min);
-    }
     
     if(possible<grid[index])  {
       if(grid[index]==FLT_MAX)  {
@@ -533,7 +533,7 @@ int KWCThreshold<dim>::executeFastMarchingIteration()
        }else{
           int heapLocation=heap.locations[index];
           i_heap_decrease_key(&heap,heapLocation,grid[index]);
-            }
+      }
     }
     
   }
@@ -547,8 +547,8 @@ template<int dim>
 void KWCThreshold<dim>::run(double epsilon)
 {
   identifyInitBoundary (epsilon);
-  STUCK=thresholding ();
-  std::cout <<"  Eaxmine Stuck Test :" << STUCK << std::endl;
+  stuckTest=thresholding ();
+  std::cout <<"  Eaxmine Stuck Test :" << stuckTest << std::endl;
 }
 
 template<int dim>
@@ -556,7 +556,6 @@ void KWCThreshold<dim>::freeMemory()
 {
   i_heap_destroy_heap(&heap);
   delete [] grid;
-  delete [] indicator;
 }
 
 
